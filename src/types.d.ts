@@ -2,19 +2,27 @@
 
 // memory extension samples
 interface CreepMemory {
-  role: string;
-  room: string;
-  working: boolean;
+	role: string;
+	room: string;
+	debug?: boolean;
 }
 
 interface Memory {
-  uuid: number;
-  log: any;
+	uuid: number;
+	log: any;
+	mainSpawn: string;
+	minHarvesters: number;
+	_constants: Constants;
+}
+
+interface Constants {
+	minHarvesters: number;
+	minBuilders: number;
 }
 
 // `global` extension samples
 declare namespace NodeJS {
-  interface Global {
-    log: any;
-  }
+	interface Global {
+		log: any;
+	}
 }
