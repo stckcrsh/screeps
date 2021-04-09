@@ -21,3 +21,8 @@
 * [Troubleshooting](in-depth/troubleshooting.md)
 * [Contributing to the docs](in-depth/contributing.md)
 
+## Strategy
+
+* [Overview](strategy/overview.md)
+* [Creeps](strategy/creeps.md)
+
