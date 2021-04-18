@@ -5,8 +5,10 @@
     "tslint-config-prettier"
   ],
   "rules": {
+		"object-literal-sort-keys":false,
     "forin": false,
     "interface-name": [true, "never-prefix"],
+		"member-access":false,
     "member-ordering": [false],
     "no-console": [false],
     "no-namespace": [true, "allow-declarations"],

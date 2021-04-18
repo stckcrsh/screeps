@@ -1,55 +1,3 @@
-const noop = () => {};
-
-const SPAWNING = 'spawning';
-const FIND_SOURCE = 'finding source';
-const FIND_BUILD_TARGET = 'find build target';
-const MOVE_TO_SOURCE = 'moving to source';
-const MOVE_TO_BUILD = 'moving to build';
-const HARVESTING = 'harvesting';
-const BUILDING = 'building';
-const IDLE = 'idle';
-
-type STATES =
-	| typeof SPAWNING
-	| typeof FIND_SOURCE
-	| typeof FIND_BUILD_TARGET
-	| typeof MOVE_TO_SOURCE
-	| typeof MOVE_TO_BUILD
-	| typeof BUILDING
-	| typeof HARVESTING
-	| typeof IDLE;
-
-const SPAWNED = 'spawned';
-const ARRIVED = 'arrived';
-const TARGET_FOUND = 'target found';
-const NO_TARGETS_FOUND = 'no targets found';
-const ENERGY_FULL = 'energy full';
-const ENERGY_EMPTY = 'energy empty';
-const BUILD_COMPLETE = 'build complete';
-const NOT_IN_RANGE = 'not in range';
-
-type EVENTS =
-	| typeof SPAWNED
-	| typeof ARRIVED
-	| typeof TARGET_FOUND
-	| typeof NO_TARGETS_FOUND
-	| typeof ENERGY_FULL
-	| typeof ENERGY_EMPTY
-	| typeof NOT_IN_RANGE
-	| typeof BUILD_COMPLETE;
-
-interface BuilderMemory extends CreepMemory {
-	state: STATES;
-	event: EVENTS;
-	source: string;
-	constructionSite: string;
-	_move: any;
-	init: boolean;
-}
-
-export interface Builder extends Creep {
-	memory: BuilderMemory;
-}
 
 export interface Machine<
 	States extends string,
@@ -69,70 +17,7 @@ export interface StateNode<
 	events: Partial<Record<Events, States>>;
 }
 
-function dispatch(creep: Builder, event: EVENTS) {
-	creep.memory.event = event;
-}
-
-const builderMachine: Machine<STATES, EVENTS, Builder> = {
-	initialState: SPAWNING,
-	states: {
-		[SPAWNING]: {
-			events: {
-				[SPAWNED]: FIND_SOURCE
-			},
-			run: runSpawn
-		},
-		[FIND_SOURCE]: {
-			events: {
-				[TARGET_FOUND]: MOVE_TO_SOURCE,
-				[NO_TARGETS_FOUND]: IDLE
-			},
-			run: runFindSource
-		},
-		[FIND_BUILD_TARGET]: {
-			events: {
-				[TARGET_FOUND]: MOVE_TO_BUILD,
-				[NO_TARGETS_FOUND]: IDLE
-			},
-			run: runFindBuild
-		},
-		[MOVE_TO_SOURCE]: {
-			events: {
-				[ARRIVED]: HARVESTING
-			},
-			run: runMoveToSource
-		},
-		[MOVE_TO_BUILD]: {
-			events: {
-				[ARRIVED]: BUILDING
-			},
-			run: runMoveToBuild
-		},
-		[HARVESTING]: {
-			events: {
-				[ENERGY_FULL]: FIND_BUILD_TARGET,
-				[NOT_IN_RANGE]: MOVE_TO_SOURCE
-			},
-			run: runHarvesting
-		},
-		[BUILDING]: {
-			events: {
-				[ENERGY_EMPTY]: FIND_SOURCE,
-				[BUILD_COMPLETE]: FIND_BUILD_TARGET,
-				[NOT_IN_RANGE]: MOVE_TO_BUILD
-			},
-			run: runBuilding
-		},
-		[IDLE]: {
-			events: {
-				[ENERGY_FULL]: FIND_BUILD_TARGET
-			},
-			run: runIdle
-		}
-	}
-};
-
-function transition<
+export function transition<
 	State extends string,
 	Event extends string,
 	C extends Creep
@@ -144,6 +29,122 @@ function transition<
 	);
 }
 
+const noop = () => {};
+
+const SPAWNING = 'spawning';
+const FIND_SOURCE = 'finding source';
+const FIND_BUILD_TARGET = 'find build target';
+const MOVE_TO_SOURCE = 'moving to source';
+const MOVE_TO_BUILD = 'moving to build';
+const HARVESTING = 'harvesting';
+const BUILDING = 'building';
+const IDLE = 'idle';
+
+export type STATES =
+	| typeof SPAWNING
+	| typeof FIND_SOURCE
+	| typeof FIND_BUILD_TARGET
+	| typeof MOVE_TO_SOURCE
+	| typeof MOVE_TO_BUILD
+	| typeof BUILDING
+	| typeof HARVESTING
+	| typeof IDLE;
+
+const SPAWNED = 'spawned';
+const ARRIVED = 'arrived';
+const TARGET_FOUND = 'target found';
+const NO_TARGETS_FOUND = 'no targets found';
+const ENERGY_FULL = 'energy full';
+const ENERGY_EMPTY = 'energy empty';
+const BUILD_COMPLETE = 'build complete';
+const NOT_IN_RANGE = 'not in range';
+
+export type EVENTS =
+	| typeof SPAWNED
+	| typeof ARRIVED
+	| typeof TARGET_FOUND
+	| typeof NO_TARGETS_FOUND
+	| typeof ENERGY_FULL
+	| typeof ENERGY_EMPTY
+	| typeof NOT_IN_RANGE
+	| typeof BUILD_COMPLETE;
+
+export interface BuilderMemory extends CreepMemory {
+	state: STATES;
+	event: EVENTS;
+	source: string;
+	constructionSite: string;
+	_move?: PathStep[];
+	init: boolean;
+}
+
+export interface Builder extends Creep {
+	memory: BuilderMemory;
+}
+
+function dispatch(creep: Builder, event: EVENTS) {
+	creep.memory.event = event;
+}
+
+export const builderMachine: Machine<STATES, EVENTS, Builder> = {
+	initialState: SPAWNING,
+	states: {
+		[SPAWNING]: {
+			events: {
+				[SPAWNED]: FIND_SOURCE,
+			},
+			run: runSpawn,
+		},
+		[FIND_SOURCE]: {
+			events: {
+				[TARGET_FOUND]: MOVE_TO_SOURCE,
+				[NO_TARGETS_FOUND]: IDLE,
+			},
+			run: runFindSource,
+		},
+		[FIND_BUILD_TARGET]: {
+			events: {
+				[TARGET_FOUND]: MOVE_TO_BUILD,
+				[NO_TARGETS_FOUND]: IDLE,
+			},
+			run: runFindBuild,
+		},
+		[MOVE_TO_SOURCE]: {
+			events: {
+				[ARRIVED]: HARVESTING,
+			},
+			run: runMoveToSource,
+		},
+		[MOVE_TO_BUILD]: {
+			events: {
+				[ARRIVED]: BUILDING,
+			},
+			run: runMoveToBuild,
+		},
+		[HARVESTING]: {
+			events: {
+				[ENERGY_FULL]: FIND_BUILD_TARGET,
+				[NOT_IN_RANGE]: MOVE_TO_SOURCE,
+			},
+			run: runHarvesting,
+		},
+		[BUILDING]: {
+			events: {
+				[ENERGY_EMPTY]: FIND_SOURCE,
+				[BUILD_COMPLETE]: FIND_BUILD_TARGET,
+				[NOT_IN_RANGE]: MOVE_TO_BUILD,
+			},
+			run: runBuilding,
+		},
+		[IDLE]: {
+			events: {
+				[ENERGY_FULL]: FIND_BUILD_TARGET,
+			},
+			run: runIdle,
+		},
+	},
+};
+
 export function run(creep: Builder) {
 	// "needs to be initialized" -> we initialize the creep if that hasn't been done yet.
 	if (!creep.memory.init) {
@@ -153,25 +154,28 @@ export function run(creep: Builder) {
 		creep.memory.init = true; // so that we know in the following ticks that it's already been initialized...
 		creep.memory.state = builderMachine.initialState;
 	}
-
+	
 	let nextState = _.get<StateNode<STATES, EVENTS, Builder>>(builderMachine, [
 		'states',
-		creep.memory.state
+		creep.memory.state,
 	]);
 
 	if (creep.memory.event) {
-		const stateStr = _.get<STATES>(builderMachine, [
-			'states',
-			creep.memory.state,
-			'events',
-			creep.memory.event
-		]);
+		const stateStr = transition(builderMachine, creep.memory.state, creep.memory.event)
+		console.log(stateStr);
+		// const stateStr = _.get<STATES>(builderMachine, [
+		// 	'states',
+		// 	creep.memory.state,
+		// 	'events',
+		// 	creep.memory.event,
+		// ]);
 
 		nextState = _.get<StateNode<STATES, EVENTS, Builder>>(builderMachine, [
 			'states',
-			stateStr
+			stateStr,
 		]);
 
+		// @ts-ignore
 		delete creep.memory.event;
 		creep.memory.state = stateStr;
 	}
@@ -197,7 +201,7 @@ function runFindSource(creep: Builder) {
 
 	creep.memory.source = source.id;
 
-	 dispatch(creep, TARGET_FOUND);
+	dispatch(creep, TARGET_FOUND);
 	return run(creep); // Call the main run function so that the next state function runs straight away
 }
 
@@ -236,11 +240,32 @@ function runMoveToBuild(creep: Builder) {
 }
 function runMove(creep: Builder, target: RoomPosition, range: number = 1) {
 	if (creep.pos.getRangeTo(target) <= range) {
+		delete creep.memory._move;
 		return dispatch(creep, ARRIVED);
 	}
 
-	const path = creep.memory._move || creep.pos.findPathTo(target);
-	const moveErr = creep.moveByPath(path);
+	if (!creep.memory._move) {
+		const path = creep.pos.findPathTo(target);
+		creep.memory._move = path;
+
+		let lastPosition = creep.pos;
+		for (const position of path) {
+			const pos = new RoomPosition(position.x, position.y, creep.pos.roomName);
+			new RoomVisual(creep.pos.roomName).line(
+				lastPosition.x,
+				lastPosition.y,
+				pos.x,
+				pos.y,
+				{
+					color: '#f58634',
+					lineStyle: 'dotted',
+				}
+			);
+			lastPosition = pos;
+		}
+	}
+
+	const moveErr = creep.moveByPath(creep.memory._move!);
 }
 function runHarvesting(creep: Builder) {
 	creep.say('🚧: Harvest');

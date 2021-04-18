@@ -1,10 +1,12 @@
+// import { MiningOverlordMemory } from './mining.overlord';
 // example declaration file - remove these and add your own custom typings
 
 // memory extension samples
 interface CreepMemory {
 	role: string;
-	room: string;
+	overlord?: string;
 	debug?: boolean;
+	[index: string]: any;
 }
 
 interface Memory {
@@ -13,6 +15,11 @@ interface Memory {
 	mainSpawn: string;
 	minHarvesters: number;
 	_constants: Constants;
+	overlords: Record<string, any>;
+}
+
+interface RoomMemory {
+	[idx: string]: any;
 }
 
 interface Constants {

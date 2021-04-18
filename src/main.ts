@@ -1,16 +1,23 @@
 import { ErrorMapper } from 'utils/ErrorMapper';
-import { createCreep } from './utils/create-creep';
 
-import * as BuilderRole from './builder.role';
-import * as HarvesterRole from './harvester.role';
+import { OnboardingOverlord } from './onboarding.overlord';
+import { Overlord } from './overlord';
+
+const OVERLORDS: Record<
+	string,
+	new (flag: Flag, name: string, type: string) => Overlord
+> = {
+	onboarding: OnboardingOverlord,
+};
 
 // check constants and set defaults
 export const setup = () => {
-	console.log('setup')
-	Memory._constants = {
-		minBuilders: 1,
-		minHarvesters: 4
-	};
+	console.log('setup');
+
+	// const overlord = newMiningOverlord(Game.rooms.W8N3);
+	// overlord.save();
+
+	console.log('setup complete');
 };
 
 setup();
@@ -18,43 +25,31 @@ setup();
 // When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
 // This utility uses source maps to get the line numbers and file names of the original, TS source code
 export const loop = ErrorMapper.wrapLoop(() => {
-	// console.log(`Current game tick is ${Game.time}`);
+	for (const flagName in Game.flags) {
+		const splitFlagName = flagName.split('_');
 
-	const groupedCreeps = _.groupBy(Game.creeps, creep => creep.memory.role);
+		if (splitFlagName.length < 2) {
+			continue;
+		}
+		const [overlordType, name] = splitFlagName;
 
-	if (
-		!groupedCreeps['builder'] ||
-		groupedCreeps['builder'].length < Memory._constants.minBuilders
-	) {
-		const spawn = Game.getObjectById<StructureSpawn>(Memory.mainSpawn);
-		if (!_.isNull(spawn)) {
-			createCreep(spawn!, ['work', 'move', 'carry', 'move', 'carry'], {
-				role: 'builder',
-				room: spawn!.room.name
-			});
-		}
-	}
-	if (
-		!groupedCreeps['harvester'] ||
-		groupedCreeps['harvester'].length < Memory._constants.minHarvesters
-	) {
-		const spawn = Game.getObjectById<StructureSpawn>(Memory.mainSpawn);
-		if (!_.isNull(spawn)) {
-			createCreep(spawn!, ['work', 'move', 'carry', 'move', 'carry'], {
-				role: 'harvester',
-				room: spawn!.room.name,
-				state: 'harvesting',
-				working: true
-			});
-		}
+		const className = OVERLORDS[overlordType];
+		const overlord = new className (
+			Game.flags[flagName],
+			name,
+			overlordType
+		);
+		overlord.init();
+
+		overlord.run();
 	}
 
-	(groupedCreeps['harvester'] || []).forEach(creep =>
-		HarvesterRole.run(creep as HarvesterRole.Harvester)
-	);
-	(groupedCreeps['builder'] || []).forEach(creep =>
-		BuilderRole.run(creep as BuilderRole.Builder)
-	);
+	// // Run through the overlords
+	// Object.entries(Memory.overlords).forEach(([name, memory]) => {
+	// 	const overlord = new OnboardingOverlord(memory);
+
+	// 	overlord.run();
+	// });
 
 	// Automatically delete memory of missing creeps
 	for (const name in Memory.creeps) {

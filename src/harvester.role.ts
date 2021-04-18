@@ -16,6 +16,7 @@ const enum ACTIONS {
 
 const clearMemory = (creep: Harvester) => {
 	delete creep.memory._move;
+	// @ts-ignore
 	delete creep.memory.target;
 };
 
@@ -143,5 +144,6 @@ export const run = (creep: Harvester) => {
 const executeAction = (creep: Harvester) => {
 	const action = actions[creep.memory.state][creep.memory.action] || noop;
 	action(creep);
+	// @ts-ignore
 	delete creep.memory.action;
 };
