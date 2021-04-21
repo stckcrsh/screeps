@@ -55,7 +55,7 @@ export class RefillStrategy extends Strategy {
 		const energyAvailable = this.overlord.mainSpawn.room.energyAvailable;
 
 		if (energyAvailable >= 300) {
-			const parts = [CARRY, CARRY, CARRY, CARRY, MOVE, MOVE];
+			const parts = [CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
 
 			const name = `${this.name}_${getRandomName()}`;
 
@@ -90,10 +90,29 @@ export class RefillStrategy extends Strategy {
 			},
 			[States.collecting]: (dispatch) => {
 				const target = Game.getObjectById<
-					StructureStorage | StructureContainer
+					StructureStorage | StructureContainer | Resource<ResourceConstant>
 				>(refiller.creep.memory.target)!;
 				refiller.runMove(target.pos, 1);
-				const err = refiller.creep.withdraw(target, RESOURCE_ENERGY);
+
+				// @ts-ignore
+				if (target?.amount) {
+					// this is a dropped resource
+					const err = refiller.creep.pickup(
+						target as Resource<ResourceConstant>
+					);
+
+					if (err === ERR_FULL) {
+						dispatch(Events.full);
+					}
+
+					if (err === OK) {
+						dispatch(Events.batteryEmpty);
+					}
+				}
+				const err = refiller.creep.withdraw(
+					target as StructureContainer,
+					RESOURCE_ENERGY
+				);
 
 				if (err === ERR_FULL) {
 					dispatch(Events.full);
@@ -120,7 +139,6 @@ export class RefillStrategy extends Strategy {
 				)!;
 				refiller.runMove(target.pos, 1);
 				const err = refiller.transfer(target);
-				console.log(err);
 				if (err === ERR_FULL || err === OK) {
 					dispatch(Events.full);
 				}
@@ -167,9 +185,23 @@ export class RefillStrategy extends Strategy {
 			}
 		);
 
-		return _.last(
-			_.sortBy(containers, (container) => container.store[RESOURCE_ENERGY])
-		);
+		if (containers.length > 0) {
+			return _.last(
+				_.sortBy(containers, (container) => container.store[RESOURCE_ENERGY])
+			);
+		}
+
+		// search for resources on the ground to gather
+		const resources = agent.creep.room.find(FIND_DROPPED_RESOURCES, {
+			filter: (i) => i.resourceType === RESOURCE_ENERGY,
+		});
+
+		if (resources.length > 0) {
+			// go to largest pile
+			return _.last(_.sortBy(resources, (resource) => resource.amount));
+		}
+
+		return null;
 	}
 	findRefillTarget(agent: Agent) {
 		// look for extensions
@@ -181,6 +213,11 @@ export class RefillStrategy extends Strategy {
 					i.store[RESOURCE_ENERGY] === 0,
 			}
 		);
+
+		if (!extension) {
+			return this.overlord.mainSpawn;
+		}
+
 		return extension;
 	}
 }

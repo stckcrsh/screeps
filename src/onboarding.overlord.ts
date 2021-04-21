@@ -1,9 +1,11 @@
+import { timingSafeEqual } from 'crypto';
 import { BuilderStrategy } from 'strategies/builder/builder.strategy';
 import { EarlyMiningStrategy } from 'strategies/early-mining/earlymining.strategy';
 
 import { Overlord } from './overlord';
 import { MiningStrategy } from './strategies/mining/mining.strategy';
 import { RefillStrategy } from './strategies/refill/refill.strategy';
+import { UpgraderStrategy } from './strategies/upgrader/upgrader.strategy';
 
 /**
  * setup strategies for the phases
@@ -47,7 +49,18 @@ export class OnboardingOverlord extends Overlord {
 		this.sources = _.sortBy(this.room.find(FIND_SOURCES), (s: Source) => s.id);
 
 		/** */
-		// this.addStrategy(new EarlyMiningStrategy(this, 'early-miner'));
+		this.addStrategy(new EarlyMiningStrategy(this, 'early-miner'));
+
+		if ((this.flag.room?.controller?.level || 0) >= 2) {
+			this.addStrategy(new UpgraderStrategy(this, 'upgrader'));
+
+			this.addStrategy(new RefillStrategy(this, 'refill'));
+
+			this.sources.forEach((source, idx) => {
+				this.addStrategy(new MiningStrategy(this, `miner-${idx}`, source));
+			});
+
+		}
 
 		/**
 		 * continue this till we hit level 2 then set construction sites
@@ -55,11 +68,8 @@ export class OnboardingOverlord extends Overlord {
 		 *  	- all ten extensions
 		 */
 
-		this.addStrategy(new RefillStrategy(this, 'refill'));
-		this.addStrategy(new BuilderStrategy(this, 'build'));
-		this.sources.forEach((source, idx) => {
-			this.addStrategy(new MiningStrategy(this, `miner-${idx}`, source));
-		});
+		// this.addStrategy(new BuilderStrategy(this, 'build'));
+
 		/**
 		 * Once all the containers are built then we can start a real mining strategy
 		 *

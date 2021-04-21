@@ -1,6 +1,6 @@
 import { Actions } from 'action-decorator';
+
 import { Agent } from '../../agent';
-import { transition } from '../../machine';
 import { Overlord } from '../../overlord';
 import { Strategy } from '../../strategy';
 import { getRandomName } from '../../utils/names';
@@ -59,6 +59,7 @@ export class EarlyMiningStrategy extends Strategy {
 				this.allArounderActions(allArounder);
 			} catch (err) {
 				console.log(`Error running actions for ${allArounder.name}`);
+				console.log(err)
 			}
 		});
 	}
@@ -114,7 +115,6 @@ export class EarlyMiningStrategy extends Strategy {
 			[States.building]: (dispatch) => {
 				if (this.constructionTarget) {
 					const err = allArounder.build(this.constructionTarget);
-					console.log(err);
 					if (err === ERR_NOT_ENOUGH_RESOURCES) {
 						return dispatch(Events.finished);
 					} else if (err === ERR_INVALID_TARGET) {
@@ -207,6 +207,84 @@ export class EarlyMiningStrategy extends Strategy {
 				console.log('found controller');
 				return dispatch(Events.foundController);
 			},
+			[States.withdrawing]: (dispatch) => {
+				if (allArounder.creep.memory.target) {
+					const target = Game.getObjectById<
+						Resource | StructureContainer | StructureStorage
+					>(allArounder.creep.memory.target)!;
+
+					// @ts-ignore
+					if (target?.amount) {
+						// this is a resource
+						const err = allArounder.creep.pickup(target as Resource);
+						if (err === ERR_NOT_IN_RANGE) {
+							return dispatch(Events.notInRange);
+						}
+						return dispatch(Events.full);
+					}
+
+					const err = allArounder.creep.withdraw(
+						target as StructureContainer,
+						RESOURCE_ENERGY
+					);
+
+					if (err === ERR_NOT_IN_RANGE) {
+						return dispatch(Events.notInRange);
+					}
+					return dispatch(Events.full);
+				}
+			},
+			[States.movingToBattery]: (dispatch) => {
+				if (allArounder.creep.memory.target) {
+					const target = Game.getObjectById<
+						Resource | StructureContainer | StructureStorage
+					>(allArounder.creep.memory.target)!;
+
+					if (allArounder.creep.pos.getRangeTo(target.pos) <= 1) {
+						return dispatch(Events.arrived);
+					}
+					allArounder.runMove(target.pos, 1);
+					return;
+				}
+			},
+			[States.findingBattery]: (dispatch) => {
+				const battery = this.findBattery(allArounder);
+
+				if (battery) {
+					allArounder.creep.memory.target = battery.id;
+					return dispatch(Events.foundBattery);
+				}
+
+				return dispatch(Events.foundSource);
+			},
 		};
+	}
+
+	findBattery(agent: Agent) {
+		// look for containers
+		const containers = agent.creep.room.find<StructureContainer>(
+			FIND_STRUCTURES,
+			{
+				filter: (i) => i.structureType === STRUCTURE_CONTAINER,
+			}
+		);
+
+		if (containers.length > 0) {
+			_.last(
+				_.sortBy(containers, (container) => container.store[RESOURCE_ENERGY])
+			);
+		}
+
+		// search for resources on the ground to gather
+		const resources = agent.creep.room.find(FIND_DROPPED_RESOURCES, {
+			filter: (i) => i.resourceType === RESOURCE_ENERGY,
+		});
+
+		if (resources.length > 0) {
+			// go to largest pile
+			return _.last(_.sortBy(resources, (resource) => resource.amount));
+		}
+
+		return null;
 	}
 }

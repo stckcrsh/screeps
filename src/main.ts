@@ -34,11 +34,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
 		const [overlordType, name] = splitFlagName;
 
 		const className = OVERLORDS[overlordType];
-		const overlord = new className (
-			Game.flags[flagName],
-			name,
-			overlordType
-		);
+		const overlord = new className(Game.flags[flagName], name, overlordType);
 		overlord.init();
 
 		overlord.run();

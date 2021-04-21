@@ -1,6 +1,6 @@
+import { isPosEqual } from './utils/position';
 export class Agent {
 	memory: {
-		path?: PathStep[];
 		event?: string;
 		state?: string;
 		[idx: string]: any;
@@ -8,6 +8,12 @@ export class Agent {
 
 	constructor(public creep: Creep) {
 		this.memory = this.creep.memory;
+	}
+
+	log(msg: string) {
+		if (this.creep.memory.debug) {
+			console.log(`${this.name}: ${msg}`)
+		}
 	}
 
 	getState() {
@@ -30,26 +36,41 @@ export class Agent {
 		target: RoomPosition,
 		range: number = 1
 	): CreepMoveReturnCode | -5 | -10 {
-		const targetHash = this.hashRoomPosition(target);
+		if (!this.memory.__travel) {
+			this.memory.__travel = { stuck: 0, path: null, target }
+		}
 
-		if (targetHash !== this.creep.memory.targetHash) {
-			console.log(`hash dont match for ${this.name}`);
-			this.creep.memory.targetHash = targetHash;
-			delete this.creep.memory.path;
+		const travel = this.memory.__travel;
+		this.log(`Travel: ${JSON.stringify(travel)}`)
+
+		// wipe out the path if the target changed
+		if (!isPosEqual(travel.target, target)) {
+
+			this.log('target has changed')
+			delete travel.path;
+			delete travel.prev;
+			travel.stuck = 0;
+			travel.target = target;
+		}
+
+		// this unit is stuck repath
+		if (travel.stuck >= 3) {
+			this.log('is stuck repathing')
+			delete travel.path;
 		}
 
 		if (this.creep.pos.getRangeTo(target) <= range) {
-			console.log(`withing range for ${this.name}`);
-			delete this.creep.memory.path;
+			this.log('within range of target')
+			delete travel.path;
 			return OK;
 		}
 
-		if (!this.creep.memory.path) {
-			const path = this.creep.pos.findPathTo(target);
-			this.creep.memory.path = path;
+		if (!travel?.path) {
+			travel.path = this.creep.pos.findPathTo(target);
+			this.log(`created new path ${JSON.stringify(travel.path)}`)
 
 			let lastPosition = this.creep.pos;
-			for (const position of path) {
+			for (const position of travel.path) {
 				const pos = new RoomPosition(
 					position.x,
 					position.y,
@@ -69,11 +90,21 @@ export class Agent {
 			}
 		}
 
-		const err = this.creep.moveByPath(this.creep.memory.path!);
+		// check if we are stuck
+		if (travel.prev) {
+			travel.prev = new RoomPosition(travel.prev.x, travel.prev.y, travel.prev.roomName);
 
-		if (err !== OK) {
-			delete this.creep.memory.path;
+			this.log(`checking if stuck`)
+			if (this.creep.pos.inRangeTo(travel.prev, 0)) {
+				travel.stuck++;
+			} else {
+				travel.stuck = 0;
+			}
 		}
+
+		const err = this.creep.moveByPath(travel.path!);
+		this.log(`has moved`);
+		travel.prev = this.creep.pos;
 
 		return err;
 	}
@@ -84,6 +115,9 @@ export class Agent {
 
 	build(site: ConstructionSite) {
 		return this.creep.build(site);
+	}
+	upgrade(site: StructureController) {
+		return this.creep.upgradeController(site);
 	}
 	repair(target: Structure<StructureConstant>) {
 		return this.creep.repair(target);
@@ -98,7 +132,7 @@ export class Agent {
 		} else if (
 			!this.memory.hasLoad &&
 			this.creep.store[RESOURCE_ENERGY] ===
-				this.creep.store.getCapacity(RESOURCE_ENERGY)
+			this.creep.store.getCapacity(RESOURCE_ENERGY)
 		) {
 			this.memory.hasLoad = true;
 		}
@@ -119,7 +153,7 @@ export class Agent {
 		this.creep.say(msg);
 	}
 
-	transfer(target: AnyCreep | Structure<StructureConstant>, amount?: number) {
-		return this.creep.transfer(target, RESOURCE_ENERGY, amount);
+	transfer(target: AnyCreep | Structure<StructureConstant>, resourceType: ResourceConstant = RESOURCE_ENERGY, amount?: number) {
+		return this.creep.transfer(target, resourceType, amount);
 	}
 }

@@ -1,19 +1,4 @@
-export const XYtoDirections = {
-	'-1': {
-		'-1': TOP_LEFT,
-		'0': LEFT,
-		'1': BOTTOM_LEFT,
-	},
-	'0': {
-		'-1': TOP,
-		'1': BOTTOM,
-	},
-	'1': {
-		'-1': TOP_RIGHT,
-		'0': RIGHT,
-		'1': BOTTOM_RIGHT,
-	},
-};
+
 export function getFreeSpaces(
 	pos: RoomPosition
 ): Array<LookForAtAreaResultWithPos<Terrain, 'terrain'>> {
@@ -28,11 +13,4 @@ export function getFreeSpaces(
 	return area.filter(
 		(result) => result.terrain === 'plain' || result.terrain === 'swamp'
 	);
-	// // map to direction Constants
-	// .map((space) => {
-	// 	const deltaX = space.x - pos.x;
-	// 	const deltaY = space.y - pos.y;
-	// 	// @ts-ignore
-	// 	return XYtoDirections[deltaX][deltaY];
-	// })
 }

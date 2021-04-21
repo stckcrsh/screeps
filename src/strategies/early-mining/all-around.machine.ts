@@ -5,7 +5,10 @@ export const enum States {
 	spawning = 'spawning',
 	harvesting = 'harvesting',
 	building = 'building',
+	withdrawing = 'withdrawing',
+	findingBattery = 'finding battery',
 	movingToSource = 'movingToSource',
+	movingToBattery = 'movingToBattery',
 	movingToController = 'movingToController',
 	movingToConstruction = 'movingToConstruction',
 	findingTarget = 'findingTarget',
@@ -17,6 +20,8 @@ export const enum Events {
 	arrived = 'arrived',
 	full = 'full',
 	finished = 'empty',
+	foundBattery = 'found battery',
+	foundSource = 'found Source',
 	foundConstruction = 'found construction',
 	foundController = 'found controller',
 	buildComplete = 'build complete',
@@ -29,12 +34,17 @@ export const allAroundMachine: Machine<States, Events> = {
 	states: {
 		[States.spawning]: {
 			events: {
-				[Events.spawned]: States.movingToSource,
+				[Events.spawned]: States.findingBattery,
 			},
 		},
 		[States.movingToController]: {
 			events: {
 				[Events.arrived]: States.upgrading,
+			},
+		},
+		[States.movingToBattery]: {
+			events: {
+				[Events.arrived]: States.withdrawing,
 			},
 		},
 		[States.movingToSource]: {
@@ -48,30 +58,42 @@ export const allAroundMachine: Machine<States, Events> = {
 				[Events.noTarget]: States.findingTarget,
 			},
 		},
+		[States.withdrawing]: {
+			events: {
+				[Events.full]: States.findingTarget,
+				[Events.notInRange]: States.movingToBattery,
+			},
+		},
 		[States.building]: {
 			events: {
-				[Events.finished]: States.movingToSource,
+				[Events.finished]: States.findingBattery,
 				[Events.buildComplete]: States.findingTarget,
 				[Events.noTarget]: States.findingTarget,
-				[Events.notInRange]:States.movingToConstruction,
+				[Events.notInRange]: States.movingToConstruction,
 			},
 		},
 		[States.upgrading]: {
 			events: {
-				[Events.finished]: States.movingToSource,
-				[Events.notInRange]:States.movingToController,
+				[Events.finished]: States.findingBattery,
+				[Events.notInRange]: States.movingToController,
 			},
 		},
 		[States.harvesting]: {
 			events: {
 				[Events.full]: States.findingTarget,
-				[Events.notInRange]:States.movingToSource,
+				[Events.notInRange]: States.movingToSource,
 			},
 		},
 		[States.findingTarget]: {
 			events: {
 				[Events.foundConstruction]: States.movingToConstruction,
 				[Events.foundController]: States.movingToController,
+			},
+		},
+		[States.findingBattery]: {
+			events: {
+				[Events.foundBattery]: States.movingToBattery,
+				[Events.foundSource]: States.movingToSource,
 			},
 		},
 	},

@@ -28,9 +28,9 @@ export abstract class Overlord {
 	abstract initOverlord(): void;
 
 	init() {
-		const spawns = this.room.find(FIND_MY_SPAWNS).map((spawn) => spawn.id);
+		const spawns = this.room.find(FIND_MY_SPAWNS)
 
-		this.mainSpawn = Game.getObjectById(spawns[0])!;
+		this.mainSpawn = spawns[0];
 
 		this.initOverlord();
 	}

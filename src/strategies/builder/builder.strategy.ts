@@ -1,10 +1,8 @@
-import * as BuilderRole from 'builder.role';
 import { Strategy } from 'strategy';
 import { getRandomName } from 'utils/names';
 
 import { Actions } from '../../action-decorator';
 import { Agent } from '../../agent';
-import { transition } from '../../machine';
 import { Overlord } from '../../overlord';
 import {
 	builderMachine,
@@ -34,8 +32,9 @@ export class BuilderStrategy extends Strategy {
 
 	// @ts-ignore
 	memory: {
-		target?: Id<ConstructionSite | Structure>;
+		construction?: Id<ConstructionSite | Structure>;
 		storageId?: Id<StructureStorage>;
+		repair?: Id<Structure>;
 	};
 
 	builders: Agent[] = [];
@@ -49,8 +48,14 @@ export class BuilderStrategy extends Strategy {
 		return this.overlord.mainSpawn;
 	}
 
-	get target() {
-		return this.memory.target && Game.getObjectById(this.memory.target);
+	get construction() {
+		return (
+			this.memory.construction && Game.getObjectById(this.memory.construction)
+		);
+	}
+
+	get repair() {
+		return this.memory.repair && Game.getObjectById(this.memory.repair);
 	}
 
 	constructor(overlord: Overlord, name: string) {
@@ -123,22 +128,25 @@ export class BuilderStrategy extends Strategy {
 			this.cartActions(cart);
 		});
 	}
-	cleanUp() {}
+	cleanUp() {
+		/** */
+	}
 
 	@Actions(builderMachine)
 	builderActions(
 		builder: Agent
 	): Record<BuilderStates, (dispatch: (event: BuilderEvents) => void) => void> {
 		const moveToTarget = (dispatch: (event: BuilderEvents) => void) => {
-			if (this.target) {
-				if (builder.creep.pos.getRangeTo(this.target.pos) <= 3) {
+			if (this.construction) {
+				if (builder.creep.pos.getRangeTo(this.construction.pos) <= 3) {
 					dispatch(BuilderEvents.ARRIVED);
 					return this.builderActions(builder);
 				}
-				builder.runMove(this.target.pos, 3);
+				builder.runMove(this.construction.pos, 3);
 				return;
 			} else {
-				return dispatch(BuilderEvents.NO_TARGETS_FOUND);
+				dispatch(BuilderEvents.NO_TARGETS_FOUND);
+				return this.builderActions(builder);
 			}
 		};
 
@@ -149,28 +157,39 @@ export class BuilderStrategy extends Strategy {
 				}
 			},
 			[BuilderStates.FIND_TARGET]: (dispatch) => {
-				if (this.memory.target) {
-					const constructionSite = Game.getObjectById(this.memory.target);
-					if (constructionSite) {
+				if (this.repair) {
+					dispatch(BuilderEvents.REPAIR_TARGET_FOUND);
+					return this.builderActions(builder);
+				} else {
+					const repairs = this.findRepairs(builder.creep.room);
+					if (repairs.length > 0) {
+						const repairTarget = _.head(repairs);
+						this.memory.repair = repairTarget.id;
+						dispatch(BuilderEvents.REPAIR_TARGET_FOUND);
+						return this.builderActions(builder);
+					}
+				}
+				if (this.construction) {
+					if (this.construction) {
 						dispatch(BuilderEvents.TARGET_FOUND);
 						return this.builderActions(builder);
 					}
 				}
 
 				const site = builder.creep.pos.findClosestByPath(
-					FIND_CONSTRUCTION_SITES
+					FIND_MY_CONSTRUCTION_SITES
 				);
 				if (site) {
-					this.memory.target = site.id;
-					dispatch(BuilderEvents.TARGET_FOUND);
+					this.memory.construction = site.id;
+					return dispatch(BuilderEvents.TARGET_FOUND);
 				} else {
 					return dispatch(BuilderEvents.NO_TARGETS_FOUND);
 				}
 			},
 			[BuilderStates.MOVE_TO_BUILD]: moveToTarget,
 			[BuilderStates.BUILDING]: (dispatch) => {
-				if (this.target) {
-					const err = builder.build(this.target as ConstructionSite);
+				if (this.construction) {
+					const err = builder.build(this.construction as ConstructionSite);
 
 					if (err === ERR_NOT_ENOUGH_RESOURCES) {
 						return dispatch(BuilderEvents.ENERGY_EMPTY);
@@ -183,15 +202,30 @@ export class BuilderStrategy extends Strategy {
 					return dispatch(BuilderEvents.NO_TARGETS_FOUND);
 				}
 			},
-			[BuilderStates.MOVE_TO_REPAIR]: moveToTarget,
+			[BuilderStates.MOVE_TO_REPAIR]: (dispatch) => {
+				if (this.repair) {
+					if (builder.creep.pos.getRangeTo(this.repair.pos) <= 3) {
+						dispatch(BuilderEvents.ARRIVED);
+						return this.builderActions(builder);
+					}
+					builder.runMove(this.repair.pos, 3);
+					return;
+				} else {
+					dispatch(BuilderEvents.NO_TARGETS_FOUND);
+					return this.builderActions(builder);
+				}
+			},
 			[BuilderStates.REPAIRING]: (dispatch) => {
-				if (this.target) {
-					const err = builder.repair(this.target as Structure);
+				if (this.repair) {
+					if (this.repair.hits === this.repair.hitsMax) {
+						dispatch(BuilderEvents.COMPLETE);
+						return this.builderActions(builder);
+					}
+
+					const err = builder.repair(this.repair as Structure);
 
 					if (err === ERR_NOT_ENOUGH_RESOURCES) {
 						return dispatch(BuilderEvents.ENERGY_EMPTY);
-					} else if (err === ERR_INVALID_TARGET) {
-						return dispatch(BuilderEvents.COMPLETE);
 					} else if (err === ERR_NOT_IN_RANGE) {
 						return dispatch(BuilderEvents.NOT_IN_RANGE);
 					}
@@ -232,7 +266,6 @@ export class BuilderStrategy extends Strategy {
 
 			[CartStates.PROCURING_ENERGY]: (dispatch) => {
 				const target = this.findEnergy(cart);
-				console.log(`Target: ${target?.id}`);
 				if (target) {
 					cart.creep.memory.target = target.id;
 					return dispatch(CartEvents.BATTERY_FOUND);
@@ -259,7 +292,6 @@ export class BuilderStrategy extends Strategy {
 				>(cart.creep.memory.target)!;
 
 				const err = cart.creep.withdraw(target, RESOURCE_ENERGY);
-				console.log(`Collecting: ${err}`);
 				if (err === ERR_FULL) {
 					dispatch(CartEvents.ENERGY_FULL);
 				}
@@ -279,7 +311,6 @@ export class BuilderStrategy extends Strategy {
 				if (!target) {
 					return dispatch(CartEvents.NO_TARGETS);
 				}
-				console.log(`Targetting: ${target}`);
 				const err = cart.transfer(target);
 
 				if (err === ERR_NOT_ENOUGH_RESOURCES) {
@@ -328,5 +359,16 @@ export class BuilderStrategy extends Strategy {
 		return _.last(
 			_.sortBy(containers, (container) => container.store[RESOURCE_ENERGY])
 		);
+	}
+
+	findRepairs(room: Room) {
+		// find anything with less than 40% of max hits
+		// ignore ramparts as that is the job for the wall repairer
+		const structures = room.find(FIND_MY_STRUCTURES, {
+			filter: (i) =>
+				i.structureType !== STRUCTURE_RAMPART && i.hits / i.hitsMax <= 0.4,
+		});
+
+		return structures;
 	}
 }

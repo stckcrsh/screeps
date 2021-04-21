@@ -4,7 +4,6 @@ export const enum States {
 	spawning = 'spawning',
 	harvesting = 'harvesting',
 	movingToSource = 'movingToSource',
-	transferring = 'transferring',
 	idle = 'idle'
 }
 
@@ -34,13 +33,6 @@ export const minerMachine: Machine<States, Events> = {
 		},
 		[States.harvesting]: {
 			events: {
-				[Events.full]: States.transferring,
-				[Events.notInRange]: States.movingToSource
-			},
-		},
-		[States.transferring]: {
-			events: {
-				[Events.finished]: States.harvesting,
 				[Events.notInRange]: States.movingToSource
 			},
 		},
