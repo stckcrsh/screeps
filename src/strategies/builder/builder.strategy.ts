@@ -95,7 +95,7 @@ export class BuilderStrategy extends Strategy {
 	}
 
 	spawnCart() {
-		const parts = [CARRY, CARRY, MOVE, CARRY, MOVE, CARRY];
+		const parts = [CARRY, CARRY, MOVE, MOVE, MOVE, CARRY];
 		const name = `${this.overlord.name}_${this.name}_${getRandomName()}`;
 
 		this.spawn.spawnCreep(parts, name, {
@@ -108,7 +108,7 @@ export class BuilderStrategy extends Strategy {
 	}
 
 	spawnBuilder() {
-		const parts = [WORK, CARRY, CARRY, MOVE, CARRY];
+		const parts = [WORK, CARRY, CARRY, MOVE, MOVE];
 		const name = `${this.overlord.name}_${this.name}_${getRandomName()}`;
 
 		this.spawn.spawnCreep(parts, name, {

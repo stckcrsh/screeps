@@ -59,7 +59,7 @@ export class EarlyMiningStrategy extends Strategy {
 				this.allArounderActions(allArounder);
 			} catch (err) {
 				console.log(`Error running actions for ${allArounder.name}`);
-				console.log(err)
+				console.log(err);
 			}
 		});
 	}
@@ -73,8 +73,9 @@ export class EarlyMiningStrategy extends Strategy {
 		if (energyAvailable >= 300) {
 			const parts = [
 				WORK,
+				MOVE, //matching work to move will make roads meaningless
 				// take leftover energy and split it between MOVE and CARRY parts
-				...Array(Math.floor((energyAvailable - 100) / 50))
+				...Array(Math.floor((energyAvailable - 150) / 50))
 					.fill(0)
 					.map((i, idx) => (idx % 2 === 0 ? MOVE : CARRY)),
 			];
@@ -187,8 +188,13 @@ export class EarlyMiningStrategy extends Strategy {
 			},
 			[States.findingTarget]: (dispatch) => {
 				console.log('finding target');
-				// check if there are any build targets
+				// prioritize a controller that is about to downgrade
+				if (this.overlord.room.controller.ticksToDowngrade <= 150) {
+					return dispatch(Events.foundController);
+				}
+				
 				if (this.constructionTarget) {
+					// check if there are any build targets
 					console.log('finding construction from memory');
 					return dispatch(Events.foundConstruction);
 				}
@@ -239,6 +245,10 @@ export class EarlyMiningStrategy extends Strategy {
 					const target = Game.getObjectById<
 						Resource | StructureContainer | StructureStorage
 					>(allArounder.creep.memory.target)!;
+
+					if (!target) {
+						return dispatch(Events.noTarget);
+					}
 
 					if (allArounder.creep.pos.getRangeTo(target.pos) <= 1) {
 						return dispatch(Events.arrived);

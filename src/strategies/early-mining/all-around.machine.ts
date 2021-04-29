@@ -1,5 +1,5 @@
 import { Machine } from '../../machine';
-const noop = () => {};
+const noop = () => { };
 
 export const enum States {
 	spawning = 'spawning',
@@ -45,6 +45,7 @@ export const allAroundMachine: Machine<States, Events> = {
 		[States.movingToBattery]: {
 			events: {
 				[Events.arrived]: States.withdrawing,
+				[Events.noTarget]: States.findingBattery
 			},
 		},
 		[States.movingToSource]: {

@@ -1,14 +1,17 @@
-import { UpgraderMachine, States, Events } from './upgrader.machine';
-import { cartMachine, States as CartStates, Events as CartEvents } from './cart.machine';
 import { Overlord } from 'overlord';
 import { getFreeSpaces } from 'utils/free-spaces';
 import { getRandomName } from 'utils/names';
 
+import { Actions } from '../../action-decorator';
 import { Agent } from '../../agent';
 import { Strategy } from '../../strategy';
-import { XYtoDirections } from '../../utils/position';
-import { Actions } from '../../action-decorator';
 import { findMissing } from '../../utils/index';
+import {
+	cartMachine,
+	Events as CartEvents,
+	States as CartStates,
+} from './cart.machine';
+import { Events, States, UpgraderMachine } from './upgrader.machine';
 
 const UPGRADER = 'upgrader';
 const CART = 'cart';
@@ -19,7 +22,7 @@ export class UpgraderStrategy extends Strategy {
 		containerPos?: { x: number; y: number };
 		containerId?: Id<StructureContainer>;
 		storageId?: Id<StructureStorage>;
-		spaces: Array<{ x: number; y: number; }>
+		spaces: Array<{ x: number; y: number }>;
 	};
 
 	upgraders: Agent[] = [];
@@ -39,7 +42,6 @@ export class UpgraderStrategy extends Strategy {
 	}
 
 	initStrategy(): void {
-
 		if (!this.memory.containerPos) {
 			// first figure out a good place to place a container
 			const bestSpace = this.findBestContainerPos();
@@ -58,24 +60,32 @@ export class UpgraderStrategy extends Strategy {
 			);
 
 			const allSurroundingSpaces = getFreeSpaces(bestSpacePos)
-				.map(space => ({ x: space.x, y: space.y }))
+				.map((space) => ({ x: space.x, y: space.y }))
 				// remove the center
-				.filter(space => !(space.x === bestSpacePos.x && space.y === bestSpacePos.y))
+				.filter(
+					(space) => !(space.x === bestSpacePos.x && space.y === bestSpacePos.y)
+				);
 
 			// remove the space that is closest to spawn
-			const firstPathSegment = _.head(bestSpacePos.findPathTo(this.overlord.mainSpawn.pos));
-			this.memory.spaces = allSurroundingSpaces.filter(space => !(space.x === firstPathSegment.x && space.y === firstPathSegment.y))
+			const firstPathSegment = _.head(
+				bestSpacePos.findPathTo(this.overlord.mainSpawn.pos, {
+					ignoreCreeps: true,
+				})
+			);
+			this.memory.spaces = allSurroundingSpaces.filter(
+				(space) =>
+					!(space.x === firstPathSegment.x && space.y === firstPathSegment.y)
+			);
 		}
-
 
 		if (!this.container) {
 			const structures = this.overlord.room.lookForAt(
 				LOOK_STRUCTURES,
 				this.memory.containerPos.x,
 				this.memory.containerPos.y
-			)
+			);
 			if (structures.length > 0) {
-				this.container = _.head(structures) as StructureContainer
+				this.container = _.head(structures) as StructureContainer;
 			} else {
 				if (
 					this.overlord.room.lookForAt(
@@ -120,36 +130,45 @@ export class UpgraderStrategy extends Strategy {
 			this.spawnCart();
 		}
 
-		if (this.container &&
-			(this.upgraders.length === 0 ||
-				(this.carts.length > 0 && this.upgraders.length < this.memory.spaces.length))
+		if (
+			this.upgraders.length === 0 ||
+			(this.container &&
+				this.carts.length > 0 &&
+					this.upgraders.length < this.memory.spaces.length)
 		) {
 			this.spawnUpgrader();
 		}
 	}
 
+	convertCreep(agent: Agent) {
+		agent.creep.memory = {
+			overlord: this.overlord.name,
+			strategy: this.name,
+			role: CART,
+		};
+	}
+
 	maxCarts() {
-		return Math.floor(this.memory.spaces.length / 3)
+		return Math.floor(this.memory.spaces.length / 3);
 	}
 
 	run(): void {
-
-		this.upgraders.forEach(creep => {
+		this.upgraders.forEach((creep) => {
 			try {
 				this.upgraderActions(creep);
 			} catch (err) {
-				console.log(`Error running actions for creep ${creep.name}`)
-				console.log(err)
+				console.log(`Error running actions for creep ${creep.name}`);
+				console.log(err);
 			}
-		})
-		this.carts.forEach(creep => {
+		});
+		this.carts.forEach((creep) => {
 			try {
 				this.cartActions(creep);
 			} catch (err) {
-				console.log(`Error running actions for creep ${creep.name}`)
-				console.log(err)
+				console.log(`Error running actions for creep ${creep.name}`);
+				console.log(err);
 			}
-		})
+		});
 	}
 	cleanUp(): void {
 		throw new Error('Method not implemented.');
@@ -163,12 +182,11 @@ export class UpgraderStrategy extends Strategy {
 				overlord: this.overlord.name,
 				strategy: this.name,
 				role: CART,
-			}
-		})
+			},
+		});
 	}
 
 	spawnUpgrader() {
-
 		const parts = [WORK, CARRY, MOVE, WORK];
 		const name = `${this.overlord.name}_${this.name}_${getRandomName()}`;
 		this.overlord.mainSpawn.spawnCreep(parts, name, {
@@ -176,12 +194,14 @@ export class UpgraderStrategy extends Strategy {
 				overlord: this.overlord.name,
 				strategy: this.name,
 				role: UPGRADER,
-			}
-		})
+			},
+		});
 	}
 
 	findMissingSpaces() {
-		const idxArr = this.upgraders.map(agent => agent.creep.memory.targetSpace);
+		const idxArr = this.upgraders.map(
+			(agent) => agent.creep.memory.targetSpace
+		);
 
 		return findMissing(this.memory.spaces, idxArr);
 	}
@@ -267,23 +287,25 @@ export class UpgraderStrategy extends Strategy {
 	}
 
 	@Actions(UpgraderMachine)
-	upgraderActions(upgrader: Agent): Record<States, (dispatch: (event: Events) => void) => void> {
+	upgraderActions(
+		upgrader: Agent
+	): Record<States, (dispatch: (event: Events) => void) => void> {
 		return {
 			[States.spawning]: (dispatch) => {
 				if (!upgrader.creep.spawning) {
 					if (upgrader.creep.memory.targetSpace) {
-						delete upgrader.creep.memory.targetSpace
+						delete upgrader.creep.memory.targetSpace;
 					}
 
 					const missingSpaces = this.findMissingSpaces();
-					console.log(`Missing Spaces ${JSON.stringify(missingSpaces)}`)
-					upgrader.creep.memory.targetSpace = _.head(missingSpaces)
-					return dispatch(Events.spawned)
+					console.log(`Missing Spaces ${JSON.stringify(missingSpaces)}`);
+					upgrader.creep.memory.targetSpace = _.head(missingSpaces);
+					return dispatch(Events.spawned);
 				}
 			},
-			[States.findingBattery]: dispatch => {
+			[States.findingBattery]: (dispatch) => {
 				if (this.container) {
-					upgrader.creep.memory.target = this.container.id
+					upgrader.creep.memory.target = this.container.id;
 					dispatch(Events.foundBattery);
 					return this.upgraderActions(upgrader);
 				}
@@ -297,13 +319,14 @@ export class UpgraderStrategy extends Strategy {
 
 				return dispatch(Events.noTargets);
 			},
-			[States.collecting]: dispatch => {
-
+			[States.collecting]: (dispatch) => {
 				if (this.container) {
 					upgrader.runMove(this.container.pos, 1);
 					upgrader.creep.withdraw(this.container, RESOURCE_ENERGY);
 				} else {
-					const target = Game.getObjectById<StructureContainer | Resource<ResourceConstant>>(upgrader.creep.memory.target);
+					const target = Game.getObjectById<
+						StructureContainer | Resource<ResourceConstant>
+					>(upgrader.creep.memory.target);
 
 					if (target) {
 						// @ts-ignore
@@ -311,11 +334,13 @@ export class UpgraderStrategy extends Strategy {
 							// this is a dropped resource
 							upgrader.runMove(target.pos, 1);
 							upgrader.creep.pickup(target as Resource);
-
 						} else {
 							// this is a container
 							upgrader.runMove(target.pos, 1);
-							upgrader.creep.withdraw(target as StructureContainer, RESOURCE_ALLOY);
+							upgrader.creep.withdraw(
+								target as StructureContainer,
+								RESOURCE_ALLOY
+							);
 						}
 					}
 				}
@@ -324,37 +349,39 @@ export class UpgraderStrategy extends Strategy {
 					return dispatch(Events.full);
 				}
 			},
-			[States.movingToTargetSpace]: dispatch => {
-
+			[States.movingToTargetSpace]: (dispatch) => {
 				if (!_.isUndefined(upgrader.creep.memory.targetSpace)) {
 					const space = this.memory.spaces[upgrader.creep.memory.targetSpace];
-					const targetPos = new RoomPosition(space.x, space.y, this.overlord.room.name)
+					const targetPos = new RoomPosition(
+						space.x,
+						space.y,
+						this.overlord.room.name
+					);
 
-					upgrader.log(`Moving to space ${JSON.stringify(space)}`)
+					upgrader.log(`Moving to space ${JSON.stringify(space)}`);
 					if (upgrader.creep.pos.getRangeTo(targetPos) <= 0) {
 						return dispatch(Events.arrived);
 					}
 
-					upgrader.runMove(targetPos, 0)
+					upgrader.runMove(targetPos, 0);
 				}
-
 			},
-			[States.upgrading]: dispatch => {
-				const err = upgrader.upgrade(this.controller)
+			[States.upgrading]: (dispatch) => {
+				const err = upgrader.upgrade(this.controller);
 				if (err === ERR_NOT_IN_RANGE) {
 					dispatch(Events.notInRange);
 				}
 
 				if (upgrader.creep.store[RESOURCE_ENERGY] === 0) {
-					dispatch(Events.empty)
+					dispatch(Events.empty);
 				}
 			},
-			[States.idle]: dispatch => {
+			[States.idle]: (dispatch) => {
 				if (Game.time % 20 === 1) {
-					dispatch(Events.timer)
+					dispatch(Events.timer);
 				}
 			},
-		}
+		};
 	}
 
 	@Actions(cartMachine)
@@ -372,22 +399,26 @@ export class UpgraderStrategy extends Strategy {
 					cart.runMove(this.storage.pos, 1);
 					cart.creep.withdraw(this.storage, RESOURCE_ENERGY);
 				} else {
-					let battery: StructureContainer | Resource<ResourceConstant> | StructureStorage | null = null;
+					let battery:
+						| StructureContainer
+						| Resource<ResourceConstant>
+						| StructureStorage
+						| null = null;
 					// if there is no storage then get from available batteries
 					if (!cart.creep.memory.battery) {
 						battery = this.findBattery(cart);
 						if (battery) {
 							cart.creep.memory.battery = battery.id;
 						} else {
-							return dispatch(CartEvents.noBattery)
+							return dispatch(CartEvents.noBattery);
 						}
 					} else {
-						battery = Game.getObjectById(cart.creep.memory.battery)
+						battery = Game.getObjectById(cart.creep.memory.battery);
 						delete cart.creep.memory.battery;
 					}
 
 					if (!battery) {
-						return dispatch(CartEvents.noBattery)
+						return dispatch(CartEvents.noBattery);
 					}
 
 					cart.runMove(battery.pos, 1);
@@ -398,13 +429,11 @@ export class UpgraderStrategy extends Strategy {
 					} else {
 						cart.creep.withdraw(battery as StructureContainer, RESOURCE_ENERGY);
 					}
-
 				}
 				if (cart.creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
 					delete cart.creep.memory.battery;
 					return dispatch(CartEvents.full);
 				}
-
 			},
 			[CartStates.transferring]: (dispatch) => {
 				if (this.container) {
@@ -418,7 +447,7 @@ export class UpgraderStrategy extends Strategy {
 			},
 			[CartStates.idle]: (dispatch) => {
 				if (Game.time % 20 === 3) {
-					return dispatch(CartEvents.timer)
+					return dispatch(CartEvents.timer);
 				}
 			},
 		};

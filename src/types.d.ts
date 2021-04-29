@@ -16,6 +16,8 @@ interface Memory {
 	minHarvesters: number;
 	_constants: Constants;
 	overlords: Record<string, any>;
+	analytics: Record<string, any>;
+	empire: Record<string, any>;
 }
 
 interface RoomMemory {

@@ -1,18 +1,13 @@
-import { findMissing } from './../../utils/index';
 import { Actions } from 'action-decorator';
 import { Overlord } from 'overlord';
 import { Strategy } from 'strategy';
 
 import { Agent } from '../../agent';
-import { transition } from '../../machine';
 import { getFreeSpaces } from '../../utils/free-spaces';
+import { findMissing } from '../../utils/index';
 import { getRandomName } from '../../utils/names';
 import { getContainer } from '../../utils/source-utils';
-import {
-	cartMachine,
-	Events as CartEvents,
-	States as CartStates,
-} from './cart.machine';
+import { cartMachine, Events as CartEvents, States as CartStates } from './cart.machine';
 import { Events, minerMachine, States } from './miner.machine';
 
 const MINER = 'miner';

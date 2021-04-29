@@ -1,4 +1,5 @@
 import { Strategy } from './strategy';
+import { Empire } from './empire';
 export abstract class Overlord {
 	strategies: Strategy[] = [];
 	mainSpawn!: StructureSpawn;
@@ -8,7 +9,7 @@ export abstract class Overlord {
 		[idx: string]: any;
 	};
 
-	constructor(protected flag: Flag, public name: string, public type: string) {
+	constructor(protected empire: Empire, protected flag: Flag, public name: string, public type: string) {
 		this.room = flag.room!;
 		this.memory = flag.memory as any;
 

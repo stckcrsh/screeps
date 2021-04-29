@@ -1,4 +1,5 @@
 import { Overlord } from './overlord';
+import { Agent } from './agent';
 export abstract class Strategy {
 	memory: any;
 	constructor(protected overlord: Overlord, public name: string) {
@@ -18,4 +19,6 @@ export abstract class Strategy {
 	abstract run(): void;
 	abstract rollCall(): void;
 	abstract cleanUp(): void;
+
+	convertCreep(agent: Agent): void{};
 }

@@ -36,8 +36,22 @@ export const DirectionToXY = {
 	[BOTTOM_LEFT]: { x: -1, y: 1 },
 	[LEFT]: { x: -1, y: 0 },
 	[TOP_LEFT]: { x: -1, y: -1 },
-}
+};
+
+export const NEIGHBORS = [
+	[0, -1],
+	[+1, -1],
+	[+1, 0],
+	[+1, +1],
+	[0, +1],
+	[-1, +1],
+	[-1, 0],
+	[-1, -1],
+];
 
 export const isPosEqual = (a: RoomPosition, b: RoomPosition): boolean => {
-	return a.x === b.x && a.y === b.y && a.roomName === b.roomName
-}
+	return a.x === b.x && a.y === b.y && a.roomName === b.roomName;
+};
+
+export const initPos = (pos: RoomPosition) =>
+	new RoomPosition(pos.x, pos.y, pos.roomName);
